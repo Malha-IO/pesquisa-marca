@@ -1,0 +1,12 @@
+# Gerados ao rodar: o que cada pessoa pesquisou fica só na máquina dela
+resultados.json
+presenca.json
+status.json
+favoritos.json
+tabela.md
+tabela.csv
+log*.txt
+*.tmp
+__pycache__/
+dist/
+.DS_Store

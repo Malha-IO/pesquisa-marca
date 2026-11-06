@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Marca do produto</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: cabeçalho com dois medidores de progresso, barra de filtros e uma tabela densa; identidade do malha.io. */
+:root{
+  --bg:#f7f9f8; --surface:#ffffff; --fg:#111418; --muted:#5a646b; --line:#d9e1df; --soft:#eef2f1;
+  --blue:#245bdb; --blue-soft:#e6edfb;
+  --ok:#0f7a52; --ok-soft:#e2f3ea; --warn:#a8650f; --warn-soft:#fbf0de; --bad:#b42318; --bad-soft:#fde8e6;
+  --mono:"IBM Plex Mono",Menlo,ui-monospace,monospace; --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#111418; --surface:#1a1f25; --fg:#eef1f3; --muted:#a9b3b8; --line:#2e353c; --soft:#20262d;
+  --blue:#8eb5ff; --blue-soft:#1f2c4a;
+  --ok:#5fd3a0; --ok-soft:#173528; --warn:#f0b65a; --warn-soft:#3a2d17; --bad:#ff8a80; --bad-soft:#3d1d1b;
+  color-scheme:dark;}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.45 var(--sans)}
+.wrap{max-width:1400px;margin:0 auto;padding:28px 20px 60px}
+.eyebrow{font:500 12px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--blue)}
+h1{font:600 30px/1.15 var(--sans);margin:6px 0 4px;text-wrap:balance}
+.sub{color:var(--muted);max-width:62ch;margin:0}
+.meters{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;margin:22px 0 18px}
+.meter{background:var(--surface);border:1px solid var(--line);padding:14px 16px}
+.meter .top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.meter .label{font:500 12px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.meter .count{font:600 20px var(--mono);font-variant-numeric:tabular-nums}
+.bar{height:4px;background:var(--soft);margin:10px 0 8px}
+.bar i{display:block;height:100%;background:var(--blue);width:0;transition:width .4s}
+.meter .st{font-size:13px;color:var(--muted)}
+.tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
+input,select,button{font:inherit;color:var(--fg)}
+input[type=search],input[type=text],select{background:var(--surface);border:1px solid var(--line);padding:8px 10px;border-radius:4px}
+input[type=search]{min-width:220px;flex:1 1 220px}
+.chip{border:1px solid var(--line);background:var(--surface);padding:6px 11px;border-radius:999px;cursor:pointer;font-size:13px}
+.chip[aria-pressed=true]{background:var(--blue);border-color:var(--blue);color:#fff}
+@media (prefers-color-scheme: dark){.chip[aria-pressed=true]{color:#0b1220}}
+.btn{background:var(--blue);color:#fff;border:0;padding:8px 14px;border-radius:4px;cursor:pointer;font-weight:500}
+@media (prefers-color-scheme: dark){.btn{color:#0b1220}}
+.btn.ghost{background:transparent;color:var(--blue);border:1px solid var(--line)}
+a{color:var(--blue)}
+:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+details.add{background:var(--surface);border:1px solid var(--line);margin-bottom:14px}
+details.add summary{cursor:pointer;padding:10px 14px;font-weight:500}
+.form{display:grid;grid-template-columns:1.1fr .9fr 2fr .6fr auto;gap:8px;padding:0 14px 14px}
+@media (max-width:760px){.form{grid-template-columns:1fr}}
+.msg{padding:0 14px 12px;font-size:13px;color:var(--muted)}
+.scroll{overflow-x:auto;background:var(--surface);border:1px solid var(--line)}
+table{border-collapse:collapse;width:100%;min-width:1100px;font-size:13.5px}
+th{position:sticky;top:0;background:var(--surface);text-align:left;font:500 11px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:10px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:hover td{background:var(--soft)}
+.name{font-weight:600;font-size:15px}
+.h{font:12px var(--mono);color:var(--muted)}
+.idea{color:var(--muted);max-width:30ch}
+.pill{display:inline-block;font:500 11px var(--mono);letter-spacing:.05em;text-transform:uppercase;padding:3px 8px;border-radius:999px;white-space:nowrap}
+.limpo,.livre,.livre\?{background:var(--ok-soft);color:var(--ok)}
+.ressalva,.à-venda{background:var(--warn-soft);color:var(--warn)}
+.tomado{background:var(--bad-soft);color:var(--bad)}
+.registrado,.ocupado{background:var(--soft);color:var(--muted)}
+.pendente,.inconclusivo,.erro{background:transparent;color:var(--muted);border:1px dashed var(--line)}
+.doms{display:flex;flex-wrap:wrap;gap:4px}
+.dom{font:11px var(--mono);padding:2px 6px;border-radius:3px;white-space:nowrap}
+.small{font-size:12px;color:var(--muted)}
+.links a{font:11px var(--mono);margin-right:6px;white-space:nowrap}
+.star{background:none;border:0;cursor:pointer;font-size:18px;color:var(--line);padding:0 4px}
+.star[aria-pressed=true]{color:#e0a106}
+.empty{padding:28px;text-align:center;color:var(--muted)}
+.foot{margin-top:12px;font-size:12px;color:var(--muted)}
+@media (prefers-reduced-motion:reduce){.bar i{transition:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">Pesquisa de marca</div>
+  <h1>Marca do produto</h1>
+  <p class="sub">Candidatos a nome de produto. Dois processos verificam devagar o INPI, nas classes 9 e 42, e a presença em domínios e redes.</p>
+
+  <div class="meters">
+    <div class="meter"><div class="top"><span class="label">INPI · classes 9 e 42</span><span class="count" id="c-inpi">–</span></div><div class="bar"><i id="b-inpi"></i></div><div class="st" id="s-inpi"></div></div>
+    <div class="meter"><div class="top"><span class="label">Domínios, GitHub e X</span><span class="count" id="c-pres">–</span></div><div class="bar"><i id="b-pres"></i></div><div class="st" id="s-pres"></div></div>
+  </div>
+
+  <details class="add">
+    <summary>Adicionar nome à pesquisa</summary>
+    <form class="form" id="f-add">
+      <input type="text" id="f-nome" placeholder="Nome" required maxlength="40">
+      <select id="f-origem"><option>inventado</option><option>latim</option><option>grego</option><option>espanhol</option><option>italiano</option><option>português</option><option>inglês</option></select>
+      <input type="text" id="f-ideia" placeholder="Ideia: o que o nome conta sobre o produto" maxlength="160">
+      <select id="f-prio" title="Prioridade"><option value="1">prioridade 1</option><option value="2">prioridade 2</option><option value="3">prioridade 3</option></select>
+      <button class="btn" type="submit">Adicionar</button>
+    </form>
+    <div class="msg" id="f-msg">Nomes novos entram na fila dos dois processos na próxima volta. Prioridade 1 é verificada antes.</div>
+  </details>
+
+  <div class="tools">
+    <input type="search" id="q" placeholder="Buscar nome, ideia ou origem">
+    <button class="chip" data-f="fav" aria-pressed="false">★ Favoritos</button>
+    <button class="chip" data-f="limpo" aria-pressed="false">Limpos no INPI</button>
+    <button class="chip" data-f="dom" aria-pressed="false">.com ou .io livre</button>
+    <button class="chip" data-f="p1" aria-pressed="false">Prioridade 1</button>
+    <select id="origem"><option value="">Todas as origens</option></select>
+    <a class="btn ghost" href="/tabela.csv">Baixar planilha</a>
+  </div>
+
+  <div class="scroll">
+    <table>
+      <thead><tr>
+        <th></th><th>Nome</th><th>Ideia</th><th>INPI</th><th>Classe 9</th><th>Classe 42</th>
+        <th>Domínios</th><th>GitHub</th><th>X</th><th>Checar à mão</th>
+      </tr></thead>
+      <tbody id="rows"><tr><td colspan="10" class="empty">Carregando os candidatos…</td></tr></tbody>
+    </table>
+  </div>
+  <div class="foot" id="foot"></div>
+</div>
+
+<script>
+const state={q:'',fav:false,limpo:false,dom:false,p1:false,origem:''};
+let DATA=null;
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const cls=s=>esc(String(s||'pendente').replace(/\s+/g,'-'));
+const free=v=>v==='livre?'||v==='livre';
+const ORDER={limpo:0,ressalva:1,pendente:2,tomado:3};
+
+async function load(){
+  try{
+    const r=await fetch('/api/data',{cache:'no-store'}); DATA=await r.json(); render();
+  }catch(e){ document.getElementById('foot').textContent='Não consegui ler os dados agora. Tentando de novo em 20 segundos.'; }
+}
+function meter(id,done,total,text){
+  document.getElementById('c-'+id).textContent=`${done} / ${total}`;
+  document.getElementById('b-'+id).style.width=total?`${Math.round(done/total*100)}%`:'0';
+  document.getElementById('s-'+id).textContent=text;
+}
+function render(){
+  const d=DATA; if(!d) return;
+  if(d.config){ const c=d.config; document.querySelector('h1').textContent=c.titulo; document.title=c.titulo;
+    if(c.subtitulo) document.querySelector('.sub').textContent=c.subtitulo; if(c.rotulo) document.querySelector('.eyebrow').textContent=c.rotulo; }
+  meter('inpi',d.inpi_feitos,d.total,d.status.inpi);
+  meter('pres',d.presenca_feitos,d.total,d.status.presenca);
+  const sel=document.getElementById('origem');
+  const origens=[...new Set(d.itens.map(i=>i.origem))].sort();
+  if(sel.options.length-1!==origens.length){ sel.innerHTML='<option value="">Todas as origens</option>'+origens.map(o=>`<option>${esc(o)}</option>`).join(''); sel.value=state.origem; }
+  const q=state.q.toLowerCase();
+  const items=d.itens.filter(i=>{
+    if(state.fav&&!i.favorito) return false;
+    if(state.limpo&&i.inpi!=='limpo') return false;
+    if(state.dom&&!(i.dominios&&(free(i.dominios.com)||free(i.dominios.io)))) return false;
+    if(state.p1&&i.prioridade!==1) return false;
+    if(state.origem&&i.origem!==state.origem) return false;
+    if(q&&!(`${i.nome} ${i.ideia} ${i.origem} ${i.handle}`.toLowerCase().includes(q))) return false;
+    return true;
+  }).sort((a,b)=>(b.favorito-a.favorito)||(ORDER[a.inpi]-ORDER[b.inpi])||(a.prioridade-b.prioridade)||a.nome.localeCompare(b.nome));
+  const tb=document.getElementById('rows');
+  if(!items.length){ tb.innerHTML='<tr><td colspan="10" class="empty">Nenhum nome com esses filtros. Tire um filtro ou adicione um nome novo.</td></tr>'; }
+  else tb.innerHTML=items.map(i=>{
+    const doms=i.dominios?['com','io','ai','com.br'].map(k=>`<span class="dom ${cls(i.dominios[k])}" title="${esc(i.handle+'.'+k)}: ${esc(i.dominios[k])}">.${k}</span>`).join(''):'<span class="pill pendente">pendente</span>';
+    const net=v=>v?`<span class="pill ${cls(v)}">${esc(v)}</span>`:'<span class="pill pendente">…</span>';
+    const L=i.links;
+    return `<tr>
+      <td><button class="star" aria-pressed="${i.favorito}" aria-label="Favoritar ${esc(i.nome)}" data-fav="${esc(i.nome)}">★</button></td>
+      <td><div class="name">${esc(i.nome)}</div><div class="h">@${esc(i.handle)} · ${esc(i.origem)} · p${i.prioridade}</div>${i.nota?`<div class="small">${esc(i.nota)}</div>`:''}</td>
+      <td class="idea">${esc(i.ideia)}</td>
+      <td><span class="pill ${cls(i.inpi)}">${esc(i.inpi)}</span>${i.parecidas?`<div class="small" style="margin-top:4px">${esc(i.parecidas)}</div>`:''}</td>
+      <td class="small">${esc(i.classe9??'…')}</td>
+      <td class="small">${esc(i.classe42??'…')}</td>
+      <td><div class="doms">${doms}</div></td>
+      <td>${net(i.github)}</td>
+      <td>${net(i.x)}</td>
+      <td class="links"><a href="${esc(L.Instagram)}" target="_blank" rel="noopener">IG</a><a href="${esc(L.TikTok)}" target="_blank" rel="noopener">TikTok</a><a href="${esc(L.Facebook)}" target="_blank" rel="noopener">FB</a><a href="${esc(L.LinkedIn)}" target="_blank" rel="noopener">LinkedIn</a></td>
+    </tr>`;}).join('');
+  document.getElementById('foot').textContent=`${items.length} de ${d.total} nomes. A página se atualiza sozinha a cada 20 segundos. Domínio "livre?" ainda precisa de confirmação no registrador. Instagram, TikTok, Facebook e LinkedIn não respondem sem login: confira pelos links.`;
+}
+document.getElementById('q').addEventListener('input',e=>{state.q=e.target.value;render();});
+document.getElementById('origem').addEventListener('change',e=>{state.origem=e.target.value;render();});
+document.querySelectorAll('.chip').forEach(b=>b.addEventListener('click',()=>{const k=b.dataset.f;state[k]=!state[k];b.setAttribute('aria-pressed',state[k]);render();}));
+document.getElementById('rows').addEventListener('click',async e=>{
+  const b=e.target.closest('[data-fav]'); if(!b) return;
+  const nome=b.dataset.fav; const r=await fetch('/api/favorito',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nome})});
+  if(r.ok){ const it=DATA.itens.find(i=>i.nome===nome); it.favorito=(await r.json()).favorito; render(); }
+});
+document.getElementById('f-add').addEventListener('submit',async e=>{
+  e.preventDefault();
+  const body={nome:document.getElementById('f-nome').value,origem:document.getElementById('f-origem').value,ideia:document.getElementById('f-ideia').value,prioridade:Number(document.getElementById('f-prio').value)};
+  const r=await fetch('/api/candidato',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const j=await r.json(); const m=document.getElementById('f-msg');
+  if(r.ok){ m.textContent=`${j.nome} entrou na fila. Os processos pegam o nome na próxima volta.`; e.target.reset(); load(); }
+  else m.textContent=j.erro||'Não consegui adicionar agora.';
+});
+load(); setInterval(load,20000);
+</script>
+</body>
+</html>
