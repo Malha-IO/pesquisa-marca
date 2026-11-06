@@ -19,6 +19,8 @@ import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
 
+import tabela_comum as tc
+
 DIR = os.path.dirname(os.path.abspath(__file__))
 CSV = os.path.join(DIR, "candidatos.csv")
 RES = os.path.join(DIR, "resultados.json")
@@ -132,8 +134,26 @@ def check_name(inpi, nome):
         verdict = "ressalva"
     else:
         verdict = "limpo"
-    return {"veredito": verdict, "classes": out,
-            "checado_em": datetime.now(timezone.utc).isoformat(timespec="seconds")}
+    res = {"veredito": verdict, "classes": out,
+           "checado_em": datetime.now(timezone.utc).isoformat(timespec="seconds")}
+    core = tc.nucleo(nome)
+    if core:
+        res["nucleo"] = check_core(inpi, core)
+    return res
+
+
+def check_core(inpi, core):
+    """Busca exata do núcleo (o nome sem OS, AI, App…): o INPI compara por ele."""
+    out = {}
+    for cls in CLASSES:
+        rows = inpi.search(core, cls, True)
+        pause()
+        out[cls] = [r for r in rows if not DEAD.search(r["situacao"])]
+    return {"termo": core, "classes": out}
+
+
+def needs_core(nome, r):
+    return bool(r) and "nucleo" not in r and tc.nucleo(nome) is not None
 
 
 def load_csv():
@@ -161,7 +181,6 @@ def save_res(res):
 
 def write_table(cands, res, status):
     """Grava o estado do INPI e redesenha a tabela comum (MD e CSV)."""
-    import tabela_comum as tc
     tc.set_status("inpi", status)
     tc.write_table()
 
@@ -175,8 +194,10 @@ def main():
     validated = False
     while True:
         cands = load_csv()
-        todo = sorted([c for c in cands if c["nome"] not in res], key=lambda c: (c["prioridade"], c["nome"]))
-        done = len(cands) - len(todo)
+        # nome novo, ou nome já pesquisado que tem sufixo (OS, AI…) e ainda não teve o núcleo verificado
+        todo = sorted([c for c in cands if c["nome"] not in res or needs_core(c["nome"], res[c["nome"]])],
+                      key=lambda c: (c["nome"] in res, c["prioridade"], c["nome"]))
+        done = sum(1 for c in cands if c["nome"] in res)
         write_table(cands, res, f"{done} de {len(cands)} verificados" + (", rodando" if todo else ", aguardando nomes novos"))
         if not todo:
             if time.time() - last_new > IDLE_EXIT:
@@ -195,10 +216,16 @@ def main():
                 log(f"checagem de controle ok ({CONTROL_MARK}/42)")
                 pause()
             c = todo[0]
-            log(f"consultando {c['nome']}")
-            res[c["nome"]] = check_name(inpi, c["nome"])
+            if c["nome"] in res:
+                core = tc.nucleo(c["nome"])
+                log(f"consultando o núcleo {core} de {c['nome']}")
+                res[c["nome"]]["nucleo"] = check_core(inpi, core)
+            else:
+                log(f"consultando {c['nome']}")
+                res[c["nome"]] = check_name(inpi, c["nome"])
             save_res(res)
-            log(f"{c['nome']}: {res[c['nome']]['veredito']}")
+            av = tc.alertas(c["nome"], res[c["nome"]])
+            log(f"{c['nome']}: {tc.veredito(res[c['nome']], av)}" + (f" ({'; '.join(a['resumo'] for a in av)})" if av else ""))
             fail_since = None
             step = 0
         except NetError as e:

@@ -73,7 +73,19 @@ Vertice,italiano,2,o ponto mais alto,3,soa como vértice
 |---|---|
 | INPI **limpo** | Nenhuma marca ativa com esse nome nas classes 9 e 42. |
 | INPI **ressalva** | Existe marca parecida ativa, ou um registro antigo em vigor. Vale olhar. |
+| INPI **risco** | Limpo na busca exata, mas com um conflito que ela não mostra. Clique em **por quê?** na tabela para ler o motivo. |
 | INPI **tomado** | A mesma marca está ativa na classe. |
+
+**Por que existe o "risco".** A busca do INPI só acha a grafia exata, mas o examinador compara o que importa no nome. A ferramenta avisa em dois casos:
+
+- **Sufixo descritivo.** Em nomes como "FarolOS" ou "PonteAI", a parte final (OS, AI, App, Hub, Lab, Cloud…) só descreve o produto. O INPI deixa essa parte de lado e compara o resto, o núcleo. Por isso a ferramenta pesquisa também o núcleo ("Farol", "Ponte"). Se ele já for marca, o nome inteiro tende a ser negado. A lei proíbe reproduzir marca alheia "ainda que com acréscimo" (Lei 9.279/96, art. 124, XIX). O sufixo só conta quando vem em maiúsculas, colado no nome: em "NimboOS" o núcleo é "Nimbo", mas "Cosmos" fica como está.
+- **Marcas vigiadas.** Se você já sabe de uma marca de terceiro que atrapalha, coloque em `config.json`, na lista `marcas_vigiadas`. Todo nome que contém essa marca ou começa igual a ela ganha o aviso. Exemplo:
+
+```json
+"marcas_vigiadas": [
+  {"marca": "Aurora", "motivo": "Aurora Sistemas tem registro na classe 42"}
+]
+```
 | Domínio **livre?** | Sem DNS e sem registro na consulta pública. Confirme no registrador antes de contar com ele. |
 | Domínio **à venda** | Registrado por quem revende domínios. Dá para comprar, mas costuma ser caro. |
 | GitHub e X **livre** | O perfil não existe. No X, pode ser conta suspensa ou reservada. |

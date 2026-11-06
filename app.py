@@ -26,16 +26,21 @@ def data():
     inpi = tc.load_json(tc.RES_INPI)
     pres = tc.load_json(tc.RES_PRES)
     favs = tc.load_json(FAV).get("favoritos", [])
+    vig = tc.marcas_vigiadas()
     items = []
     for c in cands:
         r = inpi.get(c["nome"])
         p = pres.get(c["nome"])
         h = tc.handle(c["nome"])
+        av = tc.alertas(c["nome"], r, vig)
         items.append({
             "nome": c["nome"], "handle": h, "origem": c.get("origem", ""), "leva": c.get("leva", ""),
             "ideia": c.get("ideia", ""), "prioridade": c["prioridade"], "nota": c.get("nota", ""),
             "favorito": c["nome"] in favs,
-            "inpi": r["veredito"] if r else "pendente",
+            "inpi": tc.veredito(r, av),
+            "alertas": av,
+            # núcleo ainda por verificar: o processo do INPI completa na próxima volta
+            "nucleo_pendente": bool(r) and "nucleo" not in r and tc.nucleo(c["nome"]) is not None,
             "classe9": tc.inpi_cell(r["classes"]["9"]) if r else None,
             "classe42": tc.inpi_cell(r["classes"]["42"]) if r else None,
             "parecidas": tc.similares(r["classes"]) if r else "",

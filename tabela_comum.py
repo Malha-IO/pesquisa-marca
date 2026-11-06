@@ -23,6 +23,81 @@ def handle(nome):
     return re.sub(r"[^a-z0-9]", "", s.lower())
 
 
+# Sufixos que só descrevem o produto. O INPI tende a ignorá-los e comparar o resto (o núcleo).
+# Maiúsculas importam: "NimboOS" tem núcleo "Nimbo", mas "Cosmos" não tem sufixo.
+SUFIXOS = ("OS", "AI", "IO", "HQ", "App", "Apps", "Hub", "Lab", "Labs", "Cloud", "Tech", "Soft", "Bot", "Flow", "Ops")
+CONFIG = os.path.join(DIR, "config.json")
+ORDEM = {"limpo": 0, "ressalva": 1, "risco": 2, "pendente": 3, "tomado": 4}
+
+
+def nucleo(nome):
+    """Devolve o núcleo de um nome com sufixo descritivo, ou None."""
+    n = nome.strip()
+    for suf in sorted(SUFIXOS, key=len, reverse=True):
+        core = n[: -len(suf)].rstrip(" -_.")
+        if n.endswith(suf) and len(core) >= 3 and (n[-len(suf) - 1].islower() or n[-len(suf) - 1] in " -_."):
+            return core
+    return None
+
+
+def marcas_vigiadas():
+    """Marcas de terceiros que o nome não deve conter nem lembrar (config.json, chave marcas_vigiadas)."""
+    out = []
+    for m in load_json(CONFIG).get("marcas_vigiadas", []):
+        if isinstance(m, str):
+            m = {"marca": m}
+        if (m.get("marca") or "").strip():
+            out.append({"marca": m["marca"].strip(), "motivo": (m.get("motivo") or "").strip()})
+    return out
+
+
+def alertas(nome, r, vigiadas=None):
+    """Conflitos que a busca exata não mostra: núcleo já registrado e semelhança com marcas vigiadas.
+
+    Cada alerta tem 'resumo' (curto, para a tabela) e 'porque' (a explicação para quem decide).
+    """
+    out = []
+    nuc = (r or {}).get("nucleo")
+    if nuc:
+        regs = []
+        for k in ("9", "42"):
+            for x in nuc["classes"].get(k, []):
+                regs.append(f"{x['marca'][:25]} ({x['titular'][:30]}, classe {k})")
+        regs = list(dict.fromkeys(regs))
+        if regs:
+            lista = "; ".join(regs[:3]) + (f" e mais {len(regs) - 3}" if len(regs) > 3 else "")
+            out.append({
+                "resumo": f"núcleo \"{nuc['termo']}\" já é marca",
+                "porque": (f"A busca por \"{nome}\" volta vazia, mas \"{nome[len(nuc['termo']):].strip()}\" só descreve o produto. "
+                           f"Na análise, o INPI deixa de lado a parte descritiva e compara o resto, \"{nuc['termo']}\", "
+                           f"com as marcas que já existem. \"{nuc['termo']}\" já está registrado: {lista}. "
+                           "A lei proíbe reproduzir marca alheia \"ainda que com acréscimo\" quando pode haver confusão "
+                           "(Lei 9.279/96, art. 124, XIX). O pedido tende a ser negado, e o dono pode se opor."),
+            })
+    h = handle(nome)
+    for m in (marcas_vigiadas() if vigiadas is None else vigiadas):
+        mh = handle(m["marca"])
+        if mh and (mh in h or (len(mh) >= 5 and h.startswith(mh[:4]))):
+            como = "contém" if mh in h else "começa igual a"
+            out.append({
+                "resumo": f"lembra \"{m['marca']}\"",
+                "porque": (f"\"{nome}\" {como} \"{m['marca']}\", uma marca que você marcou como vigiada"
+                           + (f" ({m['motivo']})" if m["motivo"] else "") + ". "
+                           "A busca exata não acha a semelhança, mas o examinador compara o conjunto pela escrita e pelo som. "
+                           "Se a marca vigiada estiver na mesma área, o pedido pode ser negado por risco de confusão "
+                           "(Lei 9.279/96, art. 124, XIX), e o dono dela pode se opor."),
+            })
+    return out
+
+
+def veredito(r, avisos):
+    """Veredito final: um nome limpo na busca com alerta vira 'risco'."""
+    if not r:
+        return "pendente"
+    v = r["veredito"]
+    return "risco" if v == "limpo" and avisos else v
+
+
 def load_csv():
     with open(CSV_IN, encoding="utf-8") as f:
         rows = [r for r in csv.DictReader(f) if (r.get("nome") or "").strip()]
@@ -98,13 +173,14 @@ def write_table():
     inpi = load_json(RES_INPI)
     pres = load_json(RES_PRES)
     st = load_json(STATUS)
-    order = {"limpo": 0, "ressalva": 1, "pendente": 2, "tomado": 3}
+    vig = marcas_vigiadas()
 
     rows = []
     for c in cands:
         r = inpi.get(c["nome"])
-        v = r["veredito"] if r else "pendente"
-        rows.append((order[v], c["prioridade"], c["nome"], c, r, v, pres.get(c["nome"])))
+        av = alertas(c["nome"], r, vig)
+        v = veredito(r, av)
+        rows.append((ORDEM[v], c["prioridade"], c["nome"], c, r, v, pres.get(c["nome"]), av))
     rows.sort(key=lambda x: (x[0], x[1], x[2]))
 
     md = [
@@ -116,17 +192,19 @@ def write_table():
         f"- **Domínios e redes:** {st.get('presenca', 'não iniciado')}",
         "",
         "**INPI:** limpo = nada ativo nas classes 9 e 42; ressalva = marca parecida ativa ou registro antigo em vigor; "
+        "risco = limpo na busca, mas o núcleo do nome (sem OS, AI, App…) já é marca, ou o nome lembra uma marca vigiada; "
         "tomado = mesma marca ativa. Busca limpa não garante registro: falta a análise fonética.",
         "",
         "**Domínios:** livre? = sem DNS e sem registro na consulta pública (confirmar no registrador); "
         "à venda = estacionado em plataforma de revenda. **GitHub e X:** verificação automática. "
         "**Instagram, TikTok, Facebook e LinkedIn** não respondem sem login: use os links do arquivo tabela.csv.",
         "",
-        "| Nome | @ | Origem | Ideia | INPI | Classe 9 | Classe 42 | Parecidas | .com | .io | .ai | .com.br | GitHub | X | Nota |",
-        "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|",
+        "| Nome | @ | Origem | Ideia | INPI | Alerta | Classe 9 | Classe 42 | Parecidas | .com | .io | .ai | .com.br | GitHub | X | Nota |",
+        "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|",
     ]
     out_csv = []
-    for _, _, _, c, r, v, p in rows:
+    for _, _, _, c, r, v, p, av in rows:
+        alerta = "; ".join(a["resumo"] for a in av)
         h = handle(c["nome"])
         c9 = inpi_cell(r["classes"]["9"]) if r else "…"
         c42 = inpi_cell(r["classes"]["42"]) if r else "…"
@@ -134,12 +212,12 @@ def write_table():
         dom = {d: (p or {}).get("dominios", {}).get(d, "…") for d in DOMAINS}
         gh = (p or {}).get("github", "…")
         xx = (p or {}).get("x", "…")
-        md.append(f"| **{c['nome']}** | {h} | {c['origem']} | {c['ideia']} | {v} | {c9} | {c42} | {sim} | "
+        md.append(f"| **{c['nome']}** | {h} | {c['origem']} | {c['ideia']} | {v} | {alerta} | {c9} | {c42} | {sim} | "
                   f"{dom['com']} | {dom['io']} | {dom['ai']} | {dom['com.br']} | {gh} | {xx} | {c.get('nota', '')} |")
         links = manual_links(h)
         out_csv.append({
             "nome": c["nome"], "handle": h, "origem": c["origem"], "leva": c.get("leva", ""),
-            "prioridade": c["prioridade"], "ideia": c["ideia"], "inpi": v,
+            "prioridade": c["prioridade"], "ideia": c["ideia"], "inpi": v, "alerta": alerta,
             "classe_9": c9, "classe_42": c42, "parecidas": sim,
             ".com": dom["com"], ".io": dom["io"], ".ai": dom["ai"], ".com.br": dom["com.br"],
             "github": gh, "x": xx,

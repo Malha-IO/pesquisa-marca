@@ -63,6 +63,15 @@ tr:hover td{background:var(--soft)}
 .limpo,.livre,.livre\?{background:var(--ok-soft);color:var(--ok)}
 .ressalva,.à-venda{background:var(--warn-soft);color:var(--warn)}
 .tomado{background:var(--bad-soft);color:var(--bad)}
+.risco{background:var(--bad-soft);color:var(--bad);outline:1px dashed var(--bad);outline-offset:-1px}
+.pill[title]{cursor:help}
+.alerta{margin-top:6px;font-size:12px;color:var(--bad);max-width:34ch}
+.alerta summary{cursor:pointer;list-style:none}
+.alerta summary::-webkit-details-marker{display:none}
+.alerta summary::after{content:" · por quê?";color:var(--muted);text-decoration:underline}
+.alerta[open] summary::after{content:" · fechar"}
+.alerta p{margin:6px 0 0;color:var(--fg);line-height:1.45}
+.nucleo{margin-top:4px;font-size:12px;color:var(--muted)}
 .registrado,.ocupado{background:var(--soft);color:var(--muted)}
 .pendente,.inconclusivo,.erro{background:transparent;color:var(--muted);border:1px dashed var(--line)}
 .doms{display:flex;flex-wrap:wrap;gap:4px}
@@ -103,6 +112,7 @@ tr:hover td{background:var(--soft)}
     <input type="search" id="q" placeholder="Buscar nome, ideia ou origem">
     <button class="chip" data-f="fav" aria-pressed="false">★ Favoritos</button>
     <button class="chip" data-f="limpo" aria-pressed="false">Limpos no INPI</button>
+    <button class="chip" data-f="risco" aria-pressed="false" title="Limpos na busca, mas com conflito que a busca exata não mostra">⚠ Com risco</button>
     <button class="chip" data-f="dom" aria-pressed="false">.com ou .io livre</button>
     <button class="chip" data-f="p1" aria-pressed="false">Prioridade 1</button>
     <select id="origem"><option value="">Todas as origens</option></select>
@@ -122,12 +132,20 @@ tr:hover td{background:var(--soft)}
 </div>
 
 <script>
-const state={q:'',fav:false,limpo:false,dom:false,p1:false,origem:''};
+const state={q:'',fav:false,limpo:false,risco:false,dom:false,p1:false,origem:''};
 let DATA=null;
+const OPEN=new Set();
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const cls=s=>esc(String(s||'pendente').replace(/\s+/g,'-'));
 const free=v=>v==='livre?'||v==='livre';
-const ORDER={limpo:0,ressalva:1,pendente:2,tomado:3};
+const ORDER={limpo:0,ressalva:1,risco:2,pendente:3,tomado:4};
+const EXPLICA={
+  limpo:'Nenhuma marca ativa com esse nome nas classes 9 e 42, nem parecida pelo radical. Não garante o registro: o INPI também compara pelo som.',
+  ressalva:'Existe marca parecida ativa, ou um registro antigo em vigor com o mesmo nome. Leia os nomes abaixo e avalie se há risco de confusão.',
+  risco:'A busca exata volta vazia, mas há um conflito que ela não mostra. Abra "por quê?" para ver o motivo.',
+  tomado:'A mesma marca está ativa na classe 9 ou 42. O pedido tende a ser negado.',
+  pendente:'Ainda não verificado. O processo do INPI pega este nome em breve.'
+};
 
 async function load(){
   try{
@@ -152,6 +170,7 @@ function render(){
   const items=d.itens.filter(i=>{
     if(state.fav&&!i.favorito) return false;
     if(state.limpo&&i.inpi!=='limpo') return false;
+    if(state.risco&&!(i.alertas&&i.alertas.length)) return false;
     if(state.dom&&!(i.dominios&&(free(i.dominios.com)||free(i.dominios.io)))) return false;
     if(state.p1&&i.prioridade!==1) return false;
     if(state.origem&&i.origem!==state.origem) return false;
@@ -159,6 +178,8 @@ function render(){
     return true;
   }).sort((a,b)=>(b.favorito-a.favorito)||(ORDER[a.inpi]-ORDER[b.inpi])||(a.prioridade-b.prioridade)||a.nome.localeCompare(b.nome));
   const tb=document.getElementById('rows');
+  // a atualização automática redesenha a tabela: guarda quais explicações estavam abertas
+  tb.querySelectorAll('details.alerta').forEach(x=>x.open?OPEN.add(x.dataset.key):OPEN.delete(x.dataset.key));
   if(!items.length){ tb.innerHTML='<tr><td colspan="10" class="empty">Nenhum nome com esses filtros. Tire um filtro ou adicione um nome novo.</td></tr>'; }
   else tb.innerHTML=items.map(i=>{
     const doms=i.dominios?['com','io','ai','com.br'].map(k=>`<span class="dom ${cls(i.dominios[k])}" title="${esc(i.handle+'.'+k)}: ${esc(i.dominios[k])}">.${k}</span>`).join(''):'<span class="pill pendente">pendente</span>';
@@ -168,7 +189,7 @@ function render(){
       <td><button class="star" aria-pressed="${i.favorito}" aria-label="Favoritar ${esc(i.nome)}" data-fav="${esc(i.nome)}">★</button></td>
       <td><div class="name">${esc(i.nome)}</div><div class="h">@${esc(i.handle)} · ${esc(i.origem)} · p${i.prioridade}</div>${i.nota?`<div class="small">${esc(i.nota)}</div>`:''}</td>
       <td class="idea">${esc(i.ideia)}</td>
-      <td><span class="pill ${cls(i.inpi)}">${esc(i.inpi)}</span>${i.parecidas?`<div class="small" style="margin-top:4px">${esc(i.parecidas)}</div>`:''}</td>
+      <td><span class="pill ${cls(i.inpi)}" title="${esc(EXPLICA[i.inpi]||'')}">${i.inpi==='risco'?'⚠ ':''}${esc(i.inpi)}</span>${i.parecidas?`<div class="small" style="margin-top:4px">${esc(i.parecidas)}</div>`:''}${(i.alertas||[]).map((a,k)=>`<details class="alerta" data-key="${esc(i.nome+'|'+k)}"${OPEN.has(i.nome+'|'+k)?' open':''}><summary title="${esc(a.porque)}">${esc(a.resumo)}</summary><p>${esc(a.porque)}</p></details>`).join('')}${i.nucleo_pendente?'<div class="nucleo">verificando o núcleo do nome…</div>':''}</td>
       <td class="small">${esc(i.classe9??'…')}</td>
       <td class="small">${esc(i.classe42??'…')}</td>
       <td><div class="doms">${doms}</div></td>
@@ -176,7 +197,7 @@ function render(){
       <td>${net(i.x)}</td>
       <td class="links"><a href="${esc(L.Instagram)}" target="_blank" rel="noopener">IG</a><a href="${esc(L.TikTok)}" target="_blank" rel="noopener">TikTok</a><a href="${esc(L.Facebook)}" target="_blank" rel="noopener">FB</a><a href="${esc(L.LinkedIn)}" target="_blank" rel="noopener">LinkedIn</a></td>
     </tr>`;}).join('');
-  document.getElementById('foot').textContent=`${items.length} de ${d.total} nomes. A página se atualiza sozinha a cada 20 segundos. Domínio "livre?" ainda precisa de confirmação no registrador. Instagram, TikTok, Facebook e LinkedIn não respondem sem login: confira pelos links.`;
+  document.getElementById('foot').textContent=`${items.length} de ${d.total} nomes. A página se atualiza sozinha a cada 20 segundos. "Risco" é um nome limpo na busca exata, mas com conflito que ela não mostra: passe o mouse ou clique em "por quê?". Domínio "livre?" ainda precisa de confirmação no registrador. Instagram, TikTok, Facebook e LinkedIn não respondem sem login: confira pelos links.`;
 }
 document.getElementById('q').addEventListener('input',e=>{state.q=e.target.value;render();});
 document.getElementById('origem').addEventListener('change',e=>{state.origem=e.target.value;render();});
