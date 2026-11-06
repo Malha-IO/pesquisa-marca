@@ -7,7 +7,7 @@ Ferramenta pequena para escolher o nome de um produto. Você mantém uma lista d
 
 Uma página no navegador mostra o andamento, filtra os nomes e deixa você adicionar candidatos e marcar favoritos.
 
-Feita pela [Malha.io](https://malha.io) e compartilhada com as startups do Amplifier Batch #11.
+Compartilhada com as startups do Amplifier Batch #11.
 
 ## Do que precisa
 
